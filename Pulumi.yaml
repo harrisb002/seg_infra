@@ -1,0 +1,7 @@
+name: seg_infra
+runtime: go
+description: infra code for Grain Segmentation project
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: aws-go
