@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/ec2"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
@@ -13,17 +15,17 @@ func main() {
 		/*
 			Security Group Resources
 		*/
-		sgArgs := *ec2.SecurityGroupArgs{
+		sgArgs := &ec2.SecurityGroupArgs{
 			// Ingress is the specified allowed incomming traffic
-			Ingress: &ec2.SecurityGroupIngressArray{
-				ec2.SecurityGroupArgs{
-					Protocol: pulumi.String("tcp"),
+			Ingress: ec2.SecurityGroupIngressArray{
+				ec2.SecurityGroupIngressArgs{
+					Protocol:   pulumi.String("tcp"),
 					FromPort:   pulumi.Int(8080), // Range of Ports
 					ToPort:     pulumi.Int(8080),
 					CidrBlocks: pulumi.StringArray{pulumi.String("0.0.0/0")},
 				}, // Allowing ingress traffic to PORT:8080 from any addr
-				ec2.SecurityGroupArgs{
-					Protocol: pulumi.String("tcp"),
+				ec2.SecurityGroupIngressArgs{
+					Protocol:   pulumi.String("tcp"),
 					FromPort:   pulumi.Int(22), //For SSH
 					ToPort:     pulumi.Int(22),
 					CidrBlocks: pulumi.StringArray{pulumi.String("0.0.0/0")},
@@ -32,13 +34,13 @@ func main() {
 			// Allow all traffic to Leave the Server
 			Egress: ec2.SecurityGroupEgressArray{
 				ec2.SecurityGroupEgressArgs{
-					Protocol: pulumi.String("-1"), // Allow all traffic out
-					FromPort:   pulumi.Int(0), 
+					Protocol:   pulumi.String("-1"), // Allow all traffic out
+					FromPort:   pulumi.Int(0),
 					ToPort:     pulumi.Int(0),
 					CidrBlocks: pulumi.StringArray{pulumi.String("0.0.0/0")},
 				},
 			},
-		},
+		}
 
 		sg, err := ec2.NewSecurityGroup(ctx, "jenkins-sg", sgArgs)
 		if err != nil {
@@ -55,15 +57,24 @@ func main() {
 		})
 
 		jenkinsServer, err := ec2.NewInstance(ctx, "jenkins-server", &ec2.InstanceArgs{
-			InstanceType: pulumi.String("t2.micro")
+			InstanceType:        pulumi.String("t2.micro"),              // MAKE CERTAIN FREE TIER
+			VpcSecurityGroupIds: pulumi.StringArray{sg.ID()},            // Getting the security group created above
+			Ami:                 pulumi.String("ami-066f98455b59ca1ee"), // OS instance AMI ID
+			KeyName:             kp.KeyName,                             // Create the Instance
 		})
-		
+
+		// For own curiosity
+		fmt.Println(jenkinsServer.PublicIp)
+		fmt.Println(jenkinsServer.PublicDns)
+
+		// Register these Key Value Pairs with the current Context Stack
+		// This stack is created via pulumi, named this "prod"
+		ctx.Export("publicIp", jenkinsServer.PublicIp)
+		ctx.Export("publicDns", jenkinsServer.PublicDns)
+
 		if err != nil {
 			return nil
 		}
-
-
-
 
 		return nil
 	})
