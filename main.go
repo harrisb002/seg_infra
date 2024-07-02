@@ -13,7 +13,7 @@ func main() {
 		// Create AWS resources for the EC2 Instance
 
 		/*
-			Security Group Resources
+			Create Security Group Resources
 		*/
 		sgArgs := &ec2.SecurityGroupArgs{
 			// Ingress is the specified allowed incomming traffic
@@ -22,13 +22,13 @@ func main() {
 					Protocol:   pulumi.String("tcp"),
 					FromPort:   pulumi.Int(8080), // Range of Ports
 					ToPort:     pulumi.Int(8080),
-					CidrBlocks: pulumi.StringArray{pulumi.String("0.0.0/0")},
+					CidrBlocks: pulumi.StringArray{pulumi.String("0.0.0.0/0")},
 				}, // Allowing ingress traffic to PORT:8080 from any addr
 				ec2.SecurityGroupIngressArgs{
 					Protocol:   pulumi.String("tcp"),
 					FromPort:   pulumi.Int(22), //For SSH
 					ToPort:     pulumi.Int(22),
-					CidrBlocks: pulumi.StringArray{pulumi.String("0.0.0/0")},
+					CidrBlocks: pulumi.StringArray{pulumi.String("0.0.0.0/0")},
 				},
 			},
 			// Allow all traffic to Leave the Server
@@ -37,7 +37,7 @@ func main() {
 					Protocol:   pulumi.String("-1"), // Allow all traffic out
 					FromPort:   pulumi.Int(0),
 					ToPort:     pulumi.Int(0),
-					CidrBlocks: pulumi.StringArray{pulumi.String("0.0.0/0")},
+					CidrBlocks: pulumi.StringArray{pulumi.String("0.0.0.0/0")},
 				},
 			},
 		}
@@ -48,14 +48,17 @@ func main() {
 		}
 
 		/*
-			Key Pair Resource
+			Create Key Pair Resource
 		*/
-		pk := "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDNtOhLX6zuDUGVS8U/zPsMvaoGibMqW9YBtdTZeFlo76BQhDeHLgq8q8IPAr8NIy6iX0XH+uKJF6S/CqBEewgneLomLBpRNDmkFEjcIwXcFyhBqU3hcVWvjdllw/pRteb1RVDp8m3zmMJfzIASfsQisb/ma3Y/Oo7+en+aSViGzYP7QL6w/vOZeiP9jXycJR9LxqeMwLtwL6/jh/be5OIH1idaOKAiFouc58OFGfgCS762mSEnEK5r1bcmHQuoQu3w7I4CvJMB95gdqeFhgBKRBRjmcfNQSWNhYveaCWX/UdmhTsWzo+6c+celUOpqc4A0c0CRkaxh/ogEFU59djPn8GUeWfPhxLttfRi2NnwFsBmApioJfLA2xLPcPE2VeJluWaXjqyVGztcraoMekcgznRf2mAVDnc44iOZtYm3YsI9W/FIcQb3IkcQxwWtzpnsbBTgDEueH4/uAF+gsT1ySUzvre0VJluQTwQMPGVNaiU6zWB6rng1B0J2NbUKsKf8"
 		// Used to SSH into Jenkins Server
 		kp, err := ec2.NewKeyPair(ctx, "local-ssh", &ec2.KeyPairArgs{
-			PublicKey: pulumi.String(pk),
+			PublicKey: pulumi.String("ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDU59A98tZnA82Bgil2vdi/XT+kR0Z3Itz36Y6pz3TAEu7RpcFamr433LlJ+C7E0cjVFzIaUkOBWdPhIsDdbcZTa+8FbeVoe3MwGHBTdsxvqEm4pQ7QzzPTYhfj1TZvt+Az4bFMkiIEM9OQhBi9M0gBPJC1TnCGdIRkwe9hsKpQWyOs9hRBXUwaugsxaOp5D9mQRZ8QC4G7jZpFPdyP/pAl+0CvGl/Qe1z094oKkkdA39gbWWBhpoFQwGLasyvoMkrAFbSMrkk32gNfBNMopuJw+438AHCpWOg0m/1lMJwn9sar2mdBw7NTx4pcDMVtVg0+G2CwlJAkp2gN3J29UTtICwssLiM5kHanwGDyQA4I4Y+1adHDta8DNh33J9jVmHk1B6Q3EcGQK8SMSLdKbA5qlUVtiY/HwbCMoTcZNxXsAlt3oXGHns7xt9Y4CJScwOhVNiYDFhoqyeAUpVEAgGp0kltp+mQGGwEx+b6C3x24bgOhHuOtPu8UrYe0fvUhn5s= harrisb@Benjamins-Mac-mini.local"),
 		})
+		if err != nil {
+			return err
+		}
 
+		// Create New Server Instance
 		jenkinsServer, err := ec2.NewInstance(ctx, "jenkins-server", &ec2.InstanceArgs{
 			InstanceType:        pulumi.String("t2.micro"),              // MAKE CERTAIN FREE TIER
 			VpcSecurityGroupIds: pulumi.StringArray{sg.ID()},            // Getting the security group created above
@@ -70,7 +73,7 @@ func main() {
 		// Register these Key Value Pairs with the current Context Stack
 		// This stack is created via pulumi, named this "prod"
 		ctx.Export("publicIp", jenkinsServer.PublicIp)
-		ctx.Export("publicDns", jenkinsServer.PublicDns)
+		ctx.Export("publicHostName", jenkinsServer.PublicDns)
 
 		if err != nil {
 			return nil
